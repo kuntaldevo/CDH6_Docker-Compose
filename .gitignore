@@ -1,0 +1,17 @@
+# macOS Files #
+.DS_Store
+
+# IDE Files #
+.idea
+*.iml
+.project
+.classpath
+.settings
+.nb-gradle
+nb-configuration.xml
+
+# Pipeline Binaries #
+docker-pipeline/files/pipeline
+
+# Files #
+*.log

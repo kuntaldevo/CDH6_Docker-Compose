@@ -1,0 +1,4 @@
+[template]
+  src = "spark.properties.tmpl"
+  dest = "/usr/local/paxata/pipeline/config/spark.properties"
+  keys = []

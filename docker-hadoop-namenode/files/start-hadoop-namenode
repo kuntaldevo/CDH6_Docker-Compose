@@ -1,0 +1,44 @@
+#!/bin/sh
+
+configure_krb_client() {
+    wait-for-it.sh $KERBEROS_HOST:88 -t 0
+    sed -i 's/KERBEROS_REALM/'"$KERBEROS_REALM"'/g' /etc/krb5.conf
+    sed -i 's/KERBEROS_HOST/'"$KERBEROS_HOST"'/g' /etc/krb5.conf
+    sed -i 's/DOMAIN_REALM/'"$DOMAIN_REALM"'/g' /etc/krb5.conf
+    mkdir -p /var/log/kerberos/
+}
+
+create_krb_princ() {
+    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey hdfs/$(hostname -f)@${KERBEROS_REALM}"
+    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey HTTP/$(hostname -f)@${KERBEROS_REALM}"
+}
+
+create_krb_keytab() {
+    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k hdfs.keytab hdfs/$(hostname -f) HTTP/$(hostname -f)"
+    mv hdfs.keytab ${HADOOP_CONF_DIR}
+    chown hdfs:hadoop ${HADOOP_CONF_DIR}/hdfs.keytab
+    chmod 400 ${HADOOP_CONF_DIR}/hdfs.keytab
+}
+
+fix_config() {
+    sed -i 's/namenode_hostname/0.0.0.0/g' ${HADOOP_CONF_DIR}/core-site.xml
+    sed -i 's/namenode_hostname/0.0.0.0/g' ${HADOOP_CONF_DIR}/hdfs-site.xml
+    sed -i 's/REALM/'"$KERBEROS_REALM"'/g' ${HADOOP_CONF_DIR}/hdfs-site.xml
+}
+
+start_namenode() {
+    hdfs namenode -format
+    hadoop-daemon.sh start namenode
+}
+
+main() {
+    configure_krb_client
+    create_krb_princ
+    create_krb_keytab
+    fix_config
+    start_namenode
+    tail -f $(find /var/log -name hadoop*.log)
+    tail -f /dev/null
+}
+
+main "$@"

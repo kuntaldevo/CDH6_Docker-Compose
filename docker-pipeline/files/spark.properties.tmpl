@@ -1,0 +1,10 @@
+#master.url={{ or (getenv "PIPELINE_SPARK_MASTER_URL") "spark://localhost:7077" }}
+master.url=yarn
+spark.yarn.queue=default
+spark.home={{ or (getenv "PIPELINE_SPARK_HOME") "/usr/lib/spark" }}
+yarn.num.executors={{ or (getenv "PIPELINE_YARN_NUM_EXECUTORS") "2" }}
+yarn.executor.cores={{ or (getenv  "PIPELINE_YARN_EXECUTOR_CORES") "1" }}
+hadoop.conf={{ or (getenv "PIPELINE_HADOOP_CONF") "/etc/hadoop/conf" }}
+<!-- spark.yarn.jar=/usr/lib/spark/lib/spark-assembly.jar -->
+<!-- spark.yarn.jar=/opt/cloudera/parcels/CDH/jars/spark-yarn_2.10-1.6.0-cdh5.9.2.jar -->
+spark.yarn.jars=/opt/cloudera/parcels/SPARK2/lib/spark2/jars/*.jar

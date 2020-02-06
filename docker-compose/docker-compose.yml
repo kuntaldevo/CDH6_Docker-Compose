@@ -1,0 +1,68 @@
+version: "3"
+
+services:
+  kdc:
+    image: docker-kerberos
+    container_name: $KERBEROS_HOST
+    hostname: $KERBEROS_HOST
+    env_file: .env
+    networks:
+      - $NETWORK_NAME
+
+  namenode:
+    image: dtr.paxatadev.com/cloudera/namenode:5.14.0-kerberos-8-cdh
+    container_name: $NAMENODE_CONTAINER_NAME
+    hostname: $NAMENODE_HOST
+    env_file: .env
+    networks:
+      - $NETWORK_NAME
+    ports:
+      - "50070:50070"
+
+  resourcemanager:
+    image: dtr.paxatadev.com/cloudera/resourcemanager:5.14.0-kerberos-8-cdh
+    container_name: $RESOURCEMANAGER_CONTAINER_NAME
+    hostname: $RESOURCEMANAGER_HOST
+    env_file: .env
+    networks:
+      - $NETWORK_NAME
+    ports:
+      - "8088:8088"
+
+  datanode-nodemanager:
+    image: dtr.paxatadev.com/cloudera/datanode-nodemanager:5.14.0-kerberos-8-cdh
+    container_name: $DATANODE_CONTAINER_NAME
+    hostname: $DATANODE_CONTAINER_NAME.$NETWORK_NAME
+    env_file: .env
+    networks:
+      - $NETWORK_NAME
+
+  pipeline:
+    image: dtr.paxatadev.com/cloudera/pipeline:5.14.0-spark-2.2.0-kerberos-8-cdh
+    container_name: $PIPELINE_CONTAINER_NAME
+    hostname: $PIPELINE_CONTAINER_NAME.$NETWORK_NAME
+    env_file: .env
+    networks:
+      - $NETWORK_NAME
+    ports:
+      - "8090:8090"
+
+  postgres:
+    image: postgres:9
+    container_name: $DB_CONTAINER_NAME
+    hostname: $DB_HOST
+    env_file: .env  
+    networks:
+      - $NETWORK_NAME
+
+  hive:
+    image: dtr.paxatadev.com/cloudera/hive:5.14.0-kerberos-8-cdh
+    container_name: $HIVE_CONTAINER_NAME
+    hostname: $HIVE_CONTAINER_NAME.$NETWORK_NAME
+    env_file: .env
+    networks:
+      - $NETWORK_NAME
+
+networks:
+  hadoop-network:
+    external: true

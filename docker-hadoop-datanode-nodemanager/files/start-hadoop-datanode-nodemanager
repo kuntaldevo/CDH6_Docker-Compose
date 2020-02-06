@@ -1,0 +1,93 @@
+#!/bin/sh
+
+configure_krb_client() {
+    wait-for-it.sh $KERBEROS_HOST:88 -t 0
+    sed -i 's/KERBEROS_REALM/'"$KERBEROS_REALM"'/g' /etc/krb5.conf
+    sed -i 's/KERBEROS_HOST/'"$KERBEROS_HOST"'/g' /etc/krb5.conf
+    sed -i 's/DOMAIN_REALM/'"$DOMAIN_REALM"'/g' /etc/krb5.conf
+    mkdir -p /var/log/kerberos/
+}
+
+create_krb_princ() {
+    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey hdfs/$(hostname -f)@${KERBEROS_REALM}"
+    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey HTTP/$(hostname -f)@${KERBEROS_REALM}"
+    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey yarn/$(hostname -f)@${KERBEROS_REALM}"
+}
+
+create_krb_keytab() {
+    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k hdfs.keytab hdfs/$(hostname -f) HTTP/$(hostname -f)"
+    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k yarn.keytab yarn/$(hostname -f)"
+    mv hdfs.keytab ${HADOOP_CONF_DIR}
+    chown hdfs:hadoop ${HADOOP_CONF_DIR}/hdfs.keytab
+    chmod 444 ${HADOOP_CONF_DIR}/hdfs.keytab
+    mv yarn.keytab ${HADOOP_CONF_DIR}
+    chown yarn:hadoop ${HADOOP_CONF_DIR}/yarn.keytab
+    chmod 444 ${HADOOP_CONF_DIR}/yarn.keytab
+}
+
+set_default_values() {
+    if [ "$YARN_SCHEDULER_MIN_ALLOC_MB" = "" ]; then
+        YARN_SCHEDULER_MIN_ALLOC_MB=1024
+    fi
+    if [ "$YARN_SCHEDULER_MAX_ALLOC_MB" = "" ]; then
+        YARN_SCHEDULER_MAX_ALLOC_MB=8192
+    fi
+    if [ "$YARN_SCHEDULER_MIN_ALLOC_VCORES" = "" ]; then
+        YARN_SCHEDULER_MIN_ALLOC_VCORES=1
+    fi
+    if [ "$YARN_SCHEDULER_MAX_ALLOC_VCORES" = "" ]; then
+        YARN_SCHEDULER_MAX_ALLOC_VCORES=32
+    fi
+    if [ "$YARN_NM_RESOURCE_MEM_MB" = "" ]; then
+        YARN_NM_RESOURCE_MEM_MB=4096
+    fi
+    if [ "$YARN_NM_RESOURCE_CPU_VCORES" = "" ]; then
+        YARN_NM_RESOURCE_CPU_VCORES=8
+    fi
+}
+
+fix_config() {
+    sed -i 's/namenode_hostname/'"$NAMENODE_HOST"'/g' ${HADOOP_CONF_DIR}/core-site.xml
+    sed -i 's/namenode_hostname/'"$NAMENODE_HOST"'/g' ${HADOOP_CONF_DIR}/hdfs-site.xml
+    sed -i 's/REALM/'"$KERBEROS_REALM"'/g' ${HADOOP_CONF_DIR}/hdfs-site.xml
+    sed -i 's/REALM/'"$KERBEROS_REALM"'/g' ${HADOOP_CONF_DIR}/yarn-site.xml
+    sed -i 's/REALM/'"$KERBEROS_REALM"'/g' ${HADOOP_CONF_DIR}/mapred-site.xml
+    sed -i 's/resourcemanagerhost/'"$RESOURCEMANAGER_HOST"'/g' $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_scheduler_min_alloc_mb/$YARN_SCHEDULER_MIN_ALLOC_MB/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_scheduler_max_alloc_mb/$YARN_SCHEDULER_MAX_ALLOC_MB/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_scheduler_min_alloc_vcores/$YARN_SCHEDULER_MIN_ALLOC_VCORES/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_scheduler_max_alloc_vcores/$YARN_SCHEDULER_MAX_ALLOC_VCORES/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_nm_resource_mem_mb/$YARN_NM_RESOURCE_MEM_MB/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_nm_resource_cpu_vcores/$YARN_NM_RESOURCE_CPU_VCORES/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i 's/historyserver_hostname/'"$RESOURCEMANAGER_HOST"'/g' $HADOOP_CONF_DIR/mapred-site.xml
+}
+
+set_container_executor_permissions() {
+    chown root:root ${HADOOP_HOME}/bin/container-executor
+    chmod 050 ${HADOOP_HOME}/bin/container-executor
+    chmod g+s ${HADOOP_HOME}/bin/container-executor
+    chmod u+s ${HADOOP_HOME}/bin/container-executor
+}
+
+start_datanode() {
+    hadoop-daemon.sh start datanode
+}
+
+start_nodemanager() {
+    set_container_executor_permissions
+    yarn-daemon.sh start nodemanager
+}
+
+main() {
+    configure_krb_client
+    create_krb_princ
+    create_krb_keytab
+    set_default_values
+    fix_config
+    start_datanode
+    start_nodemanager
+    tail -f $(find /var/log -name hadoop*.log -or -name yarn*.log)
+    tail -f /dev/null
+}
+
+main "$@"

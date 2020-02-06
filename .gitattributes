@@ -1,0 +1,13 @@
+# Set the default behavior, in case people don't have core.autocrlf set.
+* text=auto
+
+# Declare files that will always have LF line endings on checkout.
+*.sh text eol=lf
+start-* text eol=lf
+krb5.conf text eol=lf
+container-executor.cfg text eol=lf
+paxata-pipeline text eol=lf
+
+# Denote all files that are truly binary and should not be modified.
+container-executor binary
+*.tar.gz binary

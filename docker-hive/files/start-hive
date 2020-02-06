@@ -1,0 +1,75 @@
+#!/bin/sh
+
+configure_krb_client() {
+    wait-for-it.sh $KERBEROS_HOST:88 -t 0
+    sed -i 's/KERBEROS_REALM/'"$KERBEROS_REALM"'/g' /etc/krb5.conf
+    sed -i 's/KERBEROS_HOST/'"$KERBEROS_HOST"'/g' /etc/krb5.conf
+    sed -i 's/DOMAIN_REALM/'"$DOMAIN_REALM"'/g' /etc/krb5.conf
+    mkdir -p /var/log/kerberos/
+}
+
+create_krb_princ() {
+    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "addprinc -randkey hive/$(hostname -f)@${KERBEROS_REALM}"
+}
+
+create_krb_keytab() {
+    kadmin -p ${KERBEROS_ADMIN} -w ${KERBEROS_ADMIN_PASSWORD} -q "xst -k hive.keytab hive/$(hostname -f)"
+    mv hive.keytab ${HIVE_CONF_DIR}
+    chown hive:hadoop ${HIVE_CONF_DIR}/hive.keytab
+    chmod 400 ${HIVE_CONF_DIR}/hive.keytab
+}
+
+fix_config() {
+    sed -i 's/namenode_hostname/'"$NAMENODE_HOST"'/g' ${HADOOP_CONF_DIR}/core-site.xml
+    sed -i 's/namenode_hostname/'"$NAMENODE_HOST"'/g' ${HADOOP_CONF_DIR}/hdfs-site.xml
+    sed -i 's/REALM/'"$KERBEROS_REALM"'/g' ${HADOOP_CONF_DIR}/hdfs-site.xml
+    sed -i 's/REALM/'"$KERBEROS_REALM"'/g' ${HADOOP_CONF_DIR}/yarn-site.xml
+    sed -i 's/REALM/'"$KERBEROS_REALM"'/g' ${HADOOP_CONF_DIR}/mapred-site.xml
+    sed -i 's/resourcemanagerhost/'"$RESOURCEMANAGER_HOST"'/g' $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_scheduler_min_alloc_mb/$YARN_SCHEDULER_MIN_ALLOC_MB/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_scheduler_max_alloc_mb/$YARN_SCHEDULER_MAX_ALLOC_MB/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_scheduler_min_alloc_vcores/$YARN_SCHEDULER_MIN_ALLOC_VCORES/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_scheduler_max_alloc_vcores/$YARN_SCHEDULER_MAX_ALLOC_VCORES/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_nm_resource_mem_mb/$YARN_NM_RESOURCE_MEM_MB/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i "s/yarn_nm_resource_cpu_vcores/$YARN_NM_RESOURCE_CPU_VCORES/g" $HADOOP_CONF_DIR/yarn-site.xml
+    sed -i 's/historyserver_hostname/'"$RESOURCEMANAGER_HOST"'/g' $HADOOP_CONF_DIR/mapred-site.xml
+    sed -i 's/hivenode_hostname/'"$(hostname -f)"'/g' ${HIVE_CONF_DIR}/hive-site.xml
+}
+
+create_hive_dirs() {
+    wait-for-it.sh $NAMENODE_HOST:8020 -t 0
+    wait-for-it.sh $RESOURCEMANAGER_HOST:8031 -t 0
+    gosu hive kinit -kt ${HIVE_CONF_DIR}/hive.keytab hive/$(hostname -f)
+    gosu hive hdfs dfs -mkdir -p /user/hive/warehouse
+}
+
+init_schema() {
+    wait-for-it.sh $DB_HOST:5432 -t 0
+    gosu hive schematool -dbType postgres -initSchema
+}
+
+create_hive_log_dirs() {
+    mkdir -p /var/log/hive/
+    chown hive:hadoop /var/log/hive/
+    chmod 755 /var/log/hive/
+}
+
+start_hive_service() {
+    gosu hive ${HIVE_HOME}/bin/hive --service metastore>/var/log/hive/hive-metastore.out 2>/var/log/hive/hive-metastore.log &
+    gosu hive ${HIVE_HOME}/bin/hive --service hiveserver2>/var/log/hive/hive-server2.out 2>/var/log/hive/hive-server2.log &
+}
+
+main() {
+    configure_krb_client
+    create_krb_princ
+    create_krb_keytab
+    fix_config
+    create_hive_dirs
+    init_schema
+    create_hive_log_dirs
+    start_hive_service
+    tail -f $(find /var/log -name hive*.log)
+    tail -f /dev/null
+}
+
+main "$@"

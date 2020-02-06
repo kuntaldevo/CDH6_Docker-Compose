@@ -1,0 +1,11 @@
+px.rootdir={{ or (getenv "PIPELINE_ROOTDIR") "/usr/local/paxata/pipeline/cache" }}
+px.total.cache.capacity={{ or (getenv "PIPELINE_TOTAL_CACHE_CAPACITY") "100000000000" }}
+
+# The following are used by the pipeline startup script
+px.xms={{ or (getenv "PIPELINE_XMS") "256m" }}
+px.xmx={{ or (getenv "PIPELINE_XMX") "256m" }}
+px.xx.MaxPermSize={{ or (getenv "PIPELINE_MAXPERMSIZE") "256m" }}
+px.executor.memory={{ or (getenv "PIPELINE_EXECUTOR_MEMORY") "512m" }}
+px.partition.maxBytes={{ or (getenv "PIPELINE_PARTITION_MAXBYTES") "100000000" }}
+px.ulimit.min={{ or (getenv "PIPELINE_ULIMIT_MIN") "1024" }}
+px.grammar.packaged.module={{ getenv "PIPELINE_GRAMMAR_PACKAGED_MODULE" }}

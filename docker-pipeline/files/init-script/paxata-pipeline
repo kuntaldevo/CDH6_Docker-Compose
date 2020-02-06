@@ -1,0 +1,51 @@
+#!/bin/bash
+# paxata-pipeline daemon
+# chkconfig: 345 87 80
+# description: paxata-pipeline daemon
+# processname: paxata-pipeline.sh
+
+DAEMON_PATH="/usr/local/paxata/pipeline"
+DAEMON=paxata-pipeline.sh
+DAEMONOPTS=""
+
+NAME=paxata-pipeline
+DESC="Paxata Pipeline"
+SCRIPTNAME=/etc/init.d/$NAME
+
+PAX_USER=root
+PAX_GROUP=root
+CURRENT_USER=`whoami`
+
+case "$1" in
+start)
+    if [ "$CURRENT_USER" = "$PAX_USER" ]
+    then
+      $DAEMON_PATH/$DAEMON start $DAEMONOPTS
+    else
+      runuser -l $PAX_USER -c "$DAEMON_PATH/$DAEMON start $DAEMONOPTS"
+    fi
+;;
+status)
+    if [ "$CURRENT_USER" = "$PAX_USER" ]
+    then
+      $DAEMON_PATH/$DAEMON status
+    else
+      runuser -l $PAX_USER -c "$DAEMON_PATH/$DAEMON status"
+    fi
+;;
+stop)
+    if [ "$CURRENT_USER" = "$PAX_USER" ]
+    then
+      $DAEMON_PATH/$DAEMON stop
+    else
+      runuser -l $PAX_USER -c "$DAEMON_PATH/$DAEMON stop"
+    fi
+;;
+restart)
+    $0 stop
+    $0 start
+;;
+*)
+    echo "Usage: $0 {status|start|stop|restart}"
+    exit 1
+esac

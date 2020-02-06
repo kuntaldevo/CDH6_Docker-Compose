@@ -1,0 +1,8 @@
+jar.directory={{ or (getenv "CLUSTERING_ALGORITHMS_JAR_DIRECTORY") "/usr/local/paxata/pipeline/custom" }}
+
+# Register cluster algorithms here by key and class name.
+# Keys should start with "cluster." and end with the name of the algorithm as displayed in the UI. Keys must be unique.
+
+cluster.metaphone={{ or (getenv "CLUSTERING_ALGORITHMS_CLUSTER_METAPHONE") "com.paxata.custom.clustering.MetaphoneClusterAlgorithm" }}
+cluster.fingerprint={{ or (getenv "CLUSTERING_ALGORITHMS_CLUSTER_FINGERPRINT") "com.paxata.custom.clustering.FingerprintClusterAlgorithm" }}
+cluster.ngram={{ or (getenv "CLUSTERING_ALGORITHMS_CLUSTER_NGRAM") "com.paxata.custom.clustering.NGramClusterAlgorithm" }}

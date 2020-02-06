@@ -1,0 +1,4 @@
+[template]
+  src = "clustering-algorithms.properties.tmpl"
+  dest = "/usr/local/paxata/pipeline/config/clustering-algorithms.properties"
+  keys = []
